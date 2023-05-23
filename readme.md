@@ -1,7 +1,8 @@
 # Eloquent Enhancements
 
-[![Build Status](https://travis-ci.org/Cohros/eloquent-enhancements.svg?branch=master)](https://travis-ci.org/cohros/eloquent-enhancements)
-[![Scrutinizer Code Quality](https://img.shields.io/scrutinizer/g/Cohros/eloquent-enhancements/master.svg?style=flat-square)](https://scrutinizer-ci.com/g/Cohros/eloquent-enhancements/?branch=master)
+[![Maintainability Rating](https://sonarcloud.io/api/project_badges/measure?project=beeblebrox3_eloquent-enhancements&metric=sqale_rating)](https://sonarcloud.io/summary/new_code?id=beeblebrox3_eloquent-enhancements)
+[![Coverage](https://sonarcloud.io/api/project_badges/measure?project=beeblebrox3_eloquent-enhancements&metric=coverage)](https://sonarcloud.io/summary/new_code?id=beeblebrox3_eloquent-enhancements)
+[![Quality Gate Status](https://sonarcloud.io/api/project_badges/measure?project=beeblebrox3_eloquent-enhancements&metric=alert_status)](https://sonarcloud.io/summary/new_code?id=beeblebrox3_eloquent-enhancements)
 
 This package aims to provide extra functionalities to Laravel's Eloquent. The functionalities, for now, are provided in form of traits, so you don't have to change your models structure.
 
