@@ -1,31 +1,37 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<phpunit backupGlobals="false"
-         backupStaticAttributes="false"
-         bootstrap="vendor/autoload.php"
+<phpunit bootstrap="vendor/autoload.php"
          colors="true"
-         convertErrorsToExceptions="true"
-         convertNoticesToExceptions="true"
-         convertWarningsToExceptions="true"
-         processIsolation="false"
-         stopOnFailure="true"
-         syntaxCheck="true"
-        >
+>
     <testsuites>
         <testsuite name="Package Test Suite">
             <directory suffix=".php">./tests/</directory>
         </testsuite>
     </testsuites>
 
-    <filter>
-        <blacklist>
+    <source>
+        <include>
+            <directory suffix=".php">src</directory>
+        </include>
+        <exclude>
             <directory>./vendor</directory>
-        </blacklist>
-    </filter>
+        </exclude>
+    </source>
 
-    <filter>
-        <whitelist processUncoveredFilesFromWhitelist="true">
-            <directory suffix=".php">./src</directory>
-        </whitelist>
-    </filter>
 
+    <coverage includeUncoveredFiles="true"
+              pathCoverage="false"
+              ignoreDeprecatedCodeUnits="true"
+              disableCodeCoverageIgnore="true">
+        <report>
+            <clover outputFile="clover.xml"/>
+            <cobertura outputFile="cobertura.xml"/>
+            <html outputDirectory="html-coverage" lowUpperBound="50" highLowerBound="90"/>
+            <php outputFile="coverage.php"/>
+        </report>
+    </coverage>
+    <php>
+        <ini name="error_reporting" value="-1" />
+        <ini name="xdebug.mode" value="coverage" />
+        <env name="XDEBUG_MODE" value="coverage" />
+    </php>
 </phpunit>

@@ -1,23 +1,28 @@
 <?php
 
+namespace tests;
+
+use AbstractTestCase;
+use Database\Models\User;
+
 class PolymorphicTest extends AbstractTestCase
 {
     public function testShouldSaveAddress()
     {
-        $input = array (
+        $input = array(
             'name' => 'Model Person',
             'email' => 'person@gmail.com',
-            'phones' => array (
+            'phones' => array(
                 ['number' => '111111', 'label' => 'phone a', 'id_phone_type' => 1],
             ),
-            'addresses' => array (
+            'addresses' => array(
                 ['address' => 'Model Address', 'postal_code' => '999999'],
             ),
         );
-        
+
         $user = new User();
         $this->assertTrue($user->createAll($input));
-        
+
         $user = User::whereEmail('person@gmail.com')->with('addresses')->first();
         $this->assertEquals(1, $user->addresses->count());
     }

@@ -1,40 +1,33 @@
 <?php
 
+use Illuminate\Foundation\Application;
+use Illuminate\Contracts\Config\Repository;
 abstract class AbstractTestCase extends Orchestra\Testbench\TestCase
 {
-    public function setUp()
+    /**
+     * @param Application $app
+     * @return void
+     */
+    protected function defineEnvironment($app): void
     {
-        parent::setUp();
-
-        try {
-            $artisan = $this->app->make('artisan');
-        } catch (Exception $ex) {
-            $artisan = $this->app->make('Artisan');
-        }
-
-        // migrate packages
-        // laravel only run migrations in src folder (dont know why)
-        // @todo I want this out of composer.json. How can I do?
-        \Artisan::call('migrate', [
-            '--path' => '../../../../src/migrations',
-            '--database' => 'testbench',
-        ]);
-
-        \Artisan::call('db:seed', [
-            '--class' => 'Seed',
-        ]);
+        // Setup default database to use sqlite :memory:
+        tap($app->make('config'), function (Repository $config) {
+            $config->set('database.default', 'testbench');
+            $config->set('database.connections.testbench', [
+                'driver'   => 'sqlite',
+                'database' => ':memory:',
+                'prefix'   => '',
+            ]);
+        });
     }
 
-    protected function getEnvironmentSetUp($app)
+    protected function defineDatabaseMigrations(): void
     {
-        // reset base path to point to our package's src directory
-        $app['path.base'] = __DIR__ . '/../src';
+        $this->loadMigrationsFrom(__DIR__ . '/database/migrations');
+    }
 
-        $app['config']->set('database.default', 'testbench');
-        $app['config']->set('database.connections.testbench', [
-            'driver'   => 'sqlite',
-            'database' => ':memory:',
-            'prefix'   => '',
-        ]);
+    protected function defineDatabaseSeeders(): void
+    {
+        $this->artisan('db:seed');
     }
 }

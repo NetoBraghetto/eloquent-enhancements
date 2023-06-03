@@ -1,0 +1,20 @@
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+return new class extends Migration {
+    public function up(): void
+    {
+        Schema::create('addresses', function (Blueprint $table) {
+            $table->increments('id_address');
+            $table->string('address', 256);
+            $table->string('postal_code', 10)->nullable();
+            $table->integer('addressable_id')->unsigned();
+            $table->string('addressable_type', 256);
+            $table->timestamps();
+        });
+    }
+};
+

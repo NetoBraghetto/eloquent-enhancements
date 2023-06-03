@@ -11,25 +11,25 @@
         }
     ],
     "require": {
-        "php": ">=7.0.0",
-        "illuminate/database": "~5.4",
-        "illuminate/support": "~5.4"
+        "php": ">=8.1.0",
+        "illuminate/database": "~10.12",
+        "illuminate/support": "~10.12"
     },
     "require-dev": {
-        "orchestra/testbench": "*",
-        "phpunit/phpunit": "*"
+        "orchestra/testbench": "~8",
+        "phpunit/phpunit": "~10.1"
     },
     "autoload": {
-        "classmap": [
-            "src/migrations"
-        ],
-        "psr-0": {
+        "psr-4": {
             "Sigep\\EloquentEnhancements\\": "src/"
         }
     },
     "autoload-dev": {
+        "psr-4": {
+            "Database\\": "./tests/database"
+        },
         "classmap": [
-            "tests"
+            "tests/"
         ]
     },
     "minimum-stability": "stable",

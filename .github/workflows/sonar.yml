@@ -8,6 +8,8 @@ name: Sonar
 jobs:
   sonarcloud:
     runs-on: ubuntu-latest
+    env:
+      XDEBUG_MODE: coverage
     steps:
     - uses: actions/checkout@v3
       with:
@@ -16,7 +18,7 @@ jobs:
     - name: Setup PHP with tools
       uses: shivammathur/setup-php@v2
       with:
-        php-version: '7.1'
+        php-version: '8.1'
         tools: composer:latest
         coverage: xdebug
     - run: composer install --prefer-source --no-interaction --dev

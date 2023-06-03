@@ -1,5 +1,7 @@
 <?php
 
+use Database\Models\User;
+
 class ErrorsTest extends AbstractTestCase
 {
     public function testErrors()

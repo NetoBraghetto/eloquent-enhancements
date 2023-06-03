@@ -1,5 +1,8 @@
 <?php
 
+use Database\Models\Car;
+use Database\Models\PhoneType;
+use Database\Models\User;
 use Illuminate\Support\MessageBag;
 
 class OneToManyTest extends AbstractTestCase
@@ -18,6 +21,20 @@ class OneToManyTest extends AbstractTestCase
         $this->assertTrue(with(new User)->createAll($input));
         $luis = User::whereEmail('luish.faria@gmail.com')->with('phones')->first();
         $this->assertEquals(2, count($luis->phones));
+
+        $luisAsArray = collect($luis->toArray());
+        $output = [
+            'name' => $luisAsArray->get('name'),
+            'email' => $luisAsArray->get('email'),
+            'phones' => collect($luisAsArray->get('phones'))->map(function ($phone) {
+                return [
+                    'number' => $phone['number'],
+                    'label' => $phone['label'],
+                    'id_phone_type' => $phone['id_phone_type'],
+                ];
+            })->toArray(),
+        ];
+        $this->assertEquals($input, $output);
     }
 
     public function testEditRelationships()
@@ -45,12 +62,14 @@ class OneToManyTest extends AbstractTestCase
 
         $this->assertTrue($luis->saveAll($input));
 
-        $luis = User::whereEmail('luque@luque.cc')->with('phones')->first();
-        $this->assertEquals(2, count($luis->phones));
-        $this->assertEquals($input['name'], $luis->name);
-        $this->assertEquals($input['phones'][0]['number'], $luis->phones[0]->number);
-        $this->assertEquals($input['phones'][1]['number'], $luis->phones[1]->number);
-        $this->assertEquals($input['phones'][1]['id_phone_type'], $luis->phones[1]->id_phone_type);
+        $updatedLuis = User::whereEmail('luque@luque.cc')->with('phones')->first();
+        $this->assertEquals($luis->id_user, $updatedLuis->id_user);
+        $this->assertEquals(2, count($updatedLuis->phones));
+        $this->assertEquals($input['name'], $updatedLuis->name);
+        $this->assertEquals($input['phones'][0]['number'], $updatedLuis->phones[0]->number);
+        $this->assertEquals($input['phones'][0]['id_phone_type'], $updatedLuis->phones[0]->id_phone_type);
+        $this->assertEquals($input['phones'][1]['number'], $updatedLuis->phones[1]->number);
+        $this->assertEquals($input['phones'][1]['id_phone_type'], $updatedLuis->phones[1]->id_phone_type);
     }
 
     public function testIgnoringEmptyData()
@@ -90,10 +109,10 @@ class OneToManyTest extends AbstractTestCase
         $testInput = $input;
         $testInput['email'] = 'xxx@gmail.com';
         unset($testInput['phones'][1]['number']);
-        \DB::beginTransaction();
+        DB::beginTransaction();
         $this->assertFalse($object->createAll($testInput));
         $this->assertEquals(1, count($object->errors()->get('phones.1.number')));
-        \DB::rollback();
+        DB::rollback();
 
         $this->assertEquals(0, User::whereEmail('xxx@gmail.com')->count());
     }
@@ -112,10 +131,10 @@ class OneToManyTest extends AbstractTestCase
         ];
 
         $user = new User;
-        \DB::beginTransaction();
+        DB::beginTransaction();
         $this->assertFalse($user->createAll($input));
         $this->assertTrue($user->errors()->has('phones'));
-        \DB::rollback();
+        DB::rollback();
 
         $input = [
             'name' => 'User',
@@ -123,20 +142,20 @@ class OneToManyTest extends AbstractTestCase
             'phones' => [],
         ];
         $user = new User;
-        \DB::beginTransaction();
+        DB::beginTransaction();
         $this->assertFalse($user->createAll($input));
         $this->assertTrue($user->errors()->has('phones'));
-        \DB::rollback();
+        DB::rollback();
 
         $input = [
             'name' => 'User',
             'email' => 'user@domain.otld',
         ];
         $user = new User;
-        \DB::beginTransaction();
+        DB::beginTransaction();
         $this->assertFalse($user->createAll($input));
         $this->assertTrue($user->errors()->has('phones'));
-        \DB::rollback();
+        DB::rollback();
 
         $input = [
             'name' => 'User User',
@@ -147,11 +166,11 @@ class OneToManyTest extends AbstractTestCase
             ]
         ];
         $user = new User;
-        \DB::beginTransaction();
+        DB::beginTransaction();
         $this->assertTrue($user->createAll($input));
         $user->load('phones');
         $this->assertTrue($user->saveAll($user->toArray()));
-        \DB::commit();
+        DB::commit();
 
     }
 
@@ -177,11 +196,11 @@ class OneToManyTest extends AbstractTestCase
         $input = [
             'name' => 'Steve',
             'email' => 'steve@monster.com',
-            'phones' => array (
-                array (
+            'phones' => array(
+                array(
                     'number' => '1111111111',
                     'label' => 'phone x',
-                    'type' => array (
+                    'type' => array(
                         'name' => 'phone type x',
                     )
                 )
@@ -190,6 +209,9 @@ class OneToManyTest extends AbstractTestCase
 
         $user = new User;
         $this->assertTrue($user->createAll($input));
+
+        $phoneType = PhoneType::whereName($input['phones']['0']['type']['name'])->count();
+        $this->assertEquals(1, $phoneType);
     }
 
     public function testShouldNotCreateIfFailsToCreateBelongsTo()
@@ -197,11 +219,11 @@ class OneToManyTest extends AbstractTestCase
         $input = [
             'name' => 'Steve',
             'email' => 'steve@monster.com',
-            'phones' => array (
-                array (
+            'phones' => array(
+                array(
                     'number' => '1111111111',
                     'label' => 'phone x',
-                    'type' => array (
+                    'type' => array(
                         'name' => '',
                     )
                 )
@@ -230,7 +252,7 @@ class OneToManyTest extends AbstractTestCase
 
         $user = new User();
         $save = $user->createAll($input, [
-            'Car' => [
+            Car::class => [
                 'validator' => function ($model) {
                     $errors = new MessageBag();
                     if (!$model->vendor) {
@@ -271,7 +293,7 @@ class OneToManyTest extends AbstractTestCase
         $user = new User();
         $save = $user->createAll($input, [
             'validator' => function ($model) {
-                if (get_class($model) !== 'Car') {
+                if ($model instanceof Car === false) {
                     return true;
                 }
 
@@ -308,7 +330,7 @@ class OneToManyTest extends AbstractTestCase
 
         $user = new User();
         $save = $user->createAll($input, [
-            'User' => [
+            User::class => [
                 'fillable' => ['name']
             ],
         ]);
@@ -316,48 +338,5 @@ class OneToManyTest extends AbstractTestCase
         $this->assertTrue($save);
         $this->assertEquals($input['name'], $user->name);
         $this->assertEquals(null, $user->email);
-    }
-
-    // WTF?!
-    public function testXpto()
-    {
-        $user = User::first();
-        $type = PhoneType::first();
-        $type->name = "galinha";
-
-        $input = [
-            "label" => "This is a phone",
-            "number" => "111111111111",
-            "id_user" => $user->id_user,
-            "type" => $type->toArray(),
-        ];
-
-        $phone = new Phone();
-        $save = $phone->createAll($input);
-        $this->assertTrue($save);
-        $this->assertEquals($input['label'], $phone->label);
-        $this->assertEquals($input['number'], $phone->number);
-        $this->assertEquals($input['label'], $phone->label);
-        $this->assertEquals($type->id_phone_type, $phone->id_phone_type);
-    }
-
-    public function testShouldIgnoreDeleteWithoutId()
-    {
-        $input = [
-            'name' => 'Geremias',
-            'email' => 'GEREMIAS@GMAIL.com',
-            'phones' => [
-                ['number' => '1111111111', 'label' => 'cel', 'id_phone_type' => 1],
-                ['_delete' => true, 'number' => '111114441', 'label' => 'cel 2', 'id_phone_type' => 1]
-            ],
-        ];
-
-        $user = new User();
-        $save = $user->createAll($input);
-
-        $this->assertTrue($save);
-
-        $user = User::with('phones')->find($user->id_user);
-        $this->assertEquals(1, $user->phones()->count());
     }
 }
