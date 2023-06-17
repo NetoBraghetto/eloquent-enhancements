@@ -29,4 +29,9 @@ trait Error
     {
         $this->errors = $errors;
     }
+
+    public function addError(string $key, string $message): void
+    {
+        $this->errors()->add($key, $message);
+    }
 }

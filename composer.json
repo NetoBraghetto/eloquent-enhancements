@@ -22,7 +22,10 @@
     "autoload": {
         "psr-4": {
             "Sigep\\EloquentEnhancements\\": "src/"
-        }
+        },
+        "files": [
+            "src/helpers.php"
+        ]
     },
     "autoload-dev": {
         "psr-4": {

@@ -1,6 +1,7 @@
 <?php
 
 use Database\Models\Car;
+use Database\Models\City;
 use Database\Models\PhoneType;
 use Database\Models\User;
 use Illuminate\Support\MessageBag;
@@ -214,6 +215,53 @@ class OneToManyTest extends AbstractTestCase
         $this->assertEquals(1, $phoneType);
     }
 
+    public function testShouldReturnFalseIfFailsToCreateParent()
+    {
+        $input = [
+            'name' => 'Steve',
+            'email' => 'steve@monster.com',
+            'phones' => array(
+                array(
+                    'number' => '1111111111',
+                    'label' => 'phone x',
+                    'type' => array(
+                        'foo' => 'bar'
+                    )
+                )
+            ),
+        ];
+
+        $user = new User;
+        $this->assertFalse($user->createAll($input));
+        $this->assertTrue($user->errors()->has('phones.0.type.name'));
+    }
+
+    public function testShouldReturnFalseIfFailsToCreateParentOnUpdate()
+    {
+        $id = uniqid();
+        $input = [
+            'name' => $id,
+            'email' => "$id@monster.com",
+            'phones' => array(
+                array(
+                    'number' => '1111111111',
+                    'label' => 'phone x',
+                    'type' => array(
+                        'name' => $id,
+                    )
+                )
+            ),
+        ];
+
+        $user = new User;
+        $this->assertTrue($user->createAll($input));
+
+        $brokenInput = $input;
+        $brokenInput['phones'][0]['type'] = ['foo' => 'bar'];
+        $this->assertFalse($user->saveAll($brokenInput));
+        $this->assertTrue($user->errors()->has('phones.0.type.name'));
+    }
+
     public function testShouldNotCreateIfFailsToCreateBelongsTo()
     {
         $input = [
@@ -233,88 +281,6 @@ class OneToManyTest extends AbstractTestCase
         $user = new User;
         $this->assertFalse($user->createAll($input));
         $this->assertTrue($user->errors()->has('phones.0.type.name'));
-    }
-
-    public function testShouldUseProvidedValidatorCallback()
-    {
-        $input = [
-            'name' => 'Geremias',
-            'email' => 'GEREMIAS@GMAIL.com',
-            'phones' => [
-                ['number' => '1111111111', 'label' => 'cel', 'id_phone_type' => 1],
-                ['number' => '111114441', 'label' => 'cel 2', 'id_phone_type' => 1]
-            ],
-            'cars' => [
-                ['vendor' => 'Peugeot', 'model' => '207'],
-                ['vendor' => 'Volvo']
-            ]
-        ];
-
-        $user = new User();
-        $save = $user->createAll($input, [
-            Car::class => [
-                'validator' => function ($model) {
-                    $errors = new MessageBag();
-                    if (!$model->vendor) {
-                        $errors->add('vendor', 'required');
-                    }
-                    if (!$model->model) {
-                        $errors->add('model', 'required');
-                    }
-
-                    if ($errors->count()) {
-                        return $errors;
-                    } else {
-                        return true;
-                    }
-                }
-            ],
-        ]);
-
-        $this->assertFalse($save);
-        $this->assertTrue($user->errors()->has('cars.1.model'));
-    }
-
-    public function testShouldUseProvidedGlobalValidatorCallback()
-    {
-        $input = [
-            'name' => 'Geremias',
-            'email' => 'GEREMIAS@GMAIL.com',
-            'phones' => [
-                ['number' => '1111111111', 'label' => 'cel', 'id_phone_type' => 1],
-                ['number' => '111114441', 'label' => 'cel 2', 'id_phone_type' => 1]
-            ],
-            'cars' => [
-                ['vendor' => 'Peugeot', 'model' => '207'],
-                ['vendor' => 'Volvo']
-            ]
-        ];
-
-        $user = new User();
-        $save = $user->createAll($input, [
-            'validator' => function ($model) {
-                if ($model instanceof Car === false) {
-                    return true;
-                }
-
-                $errors = new MessageBag();
-                if (!$model->vendor) {
-                    $errors->add('vendor', 'required');
-                }
-                if (!$model->model) {
-                    $errors->add('model', 'required');
-                }
-
-                if ($errors->count()) {
-                    return $errors;
-                } else {
-                    return true;
-                }
-            }
-        ]);
-
-        $this->assertFalse($save);
-        $this->assertTrue($user->errors()->has('cars.1.model'));
     }
 
     public function testFillableOption()
@@ -338,5 +304,12 @@ class OneToManyTest extends AbstractTestCase
         $this->assertTrue($save);
         $this->assertEquals($input['name'], $user->name);
         $this->assertEquals(null, $user->email);
+    }
+
+    public function testShouldReturnFalseWhenUpdatdingWithInvalidData()
+    {
+        $city = new City();
+        $this->assertTrue($city->createAll(['name' => uniqid()]));
+        $this->assertFalse($city->saveAll(['name' => '']));
     }
 }

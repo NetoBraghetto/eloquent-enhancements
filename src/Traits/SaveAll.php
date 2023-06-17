@@ -1,20 +1,27 @@
 <?php
 
+
 namespace Sigep\EloquentEnhancements\Traits;
 
+use Exception;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Illuminate\Database\Eloquent\Relations\HasManyThrough;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use UnexpectedValueException;
+use function Sigep\EloquentEnhancements\cleanCollection;
+use function Sigep\EloquentEnhancements\isAssoc;
 
 trait SaveAll
 {
-    public function getPrimaryKeyName(): string {
+    public function getPrimaryKeyName(): string
+    {
         return $this->primaryKey;
     }
 
-    public function getPrimaryKeyValue(): mixed {
+    public function getPrimaryKeyValue(): mixed
+    {
         return $this->getAttribute($this->getPrimaryKeyName());
     }
 
@@ -23,7 +30,7 @@ trait SaveAll
      * @param string $path
      * @return bool
      */
-    private function __handleValidator(array $options, $path)
+    private function checkValidationRules(array $options, $path): bool
     {
         $modelName = get_class($this);
         $shortModelName = class_basename($modelName);
@@ -31,7 +38,9 @@ trait SaveAll
 
         if (!empty($options[$modelName]['validator']) && is_callable($options[$modelName]['validator'])) {
             $validator = $options[$modelName]['validator'];
-        } elseif (!empty($options[$shortModelName]['validator']) && is_callable($options[$shortModelName]['validator'])) {
+        } elseif (
+            !empty($options[$shortModelName]['validator'])
+            && is_callable($options[$shortModelName]['validator'])) {
             $validator = $options[$shortModelName]['validator'];
         } elseif (!empty($options['validator']) && is_callable($options['validator'])) {
             $validator = $options['validator'];
@@ -52,7 +61,7 @@ trait SaveAll
      * @param array $options
      * @param array $data
      */
-    private function __handleFill(array $options, array $data)
+    private function applyFill(array $options, array $data): void
     {
         $modelName = get_class($this);
         if (!empty($options[$modelName]['fillable'])) {
@@ -68,24 +77,25 @@ trait SaveAll
         $this->fill($data);
     }
 
-    /**
+    /**ß
      * create a new object and calls saveAll() method to save its relationships
      *
      * @param array $data
+     * @param array $options
      * @param string $path used to control where put the error messages
      *
      * @return boolean
      */
-    public function createAll(array $data = [], $options = [], $path = '')
+    public function createAll(array $data = [], array $options = [], string $path = ''): bool
     {
-        $this->__handleFill($options, $data);
+        $this->applyFill($options, $data);
         $data = $this->checkBelongsTo($data, $options, $path);
 
         if ($this->errors()->count()) {
             return false;
         }
 
-        if (!$this->__handleValidator($options, $path) || !$this->save()) {
+        if (!$this->checkValidationRules($options, $path) || !$this->save()) {
             return false;
         }
 
@@ -99,23 +109,24 @@ trait SaveAll
      * The related data must be array and the key is the name of the relationship
      * We support relationships from relationships too.
      *
-     * @param  array $data
-     * @param  boolean $skipUpdate if true, current model will not be updated
+     * @param array $data
+     * @param array $options
+     * @param boolean $skipUpdate if true, current model will not be updated
+     * @param string $path
      * @return boolean
+     * @throws Exception
      */
-    public function saveAll(array $data = [], array $options = [], $skipUpdate = false, $path = '')
+    public function saveAll(array $data = [], array $options = [], bool $skipUpdate = false, string $path = ''): bool
     {
-        $this->__handleFill($options, $data);
+        $this->applyFill($options, $data);
         $data = $this->checkBelongsTo($data, $options, $path); // @is really necessary?
 
         if ($this->errors()->count()) {
             return false;
         }
 
-        if (!$skipUpdate) {
-            if ($this->__handleValidator($options, $path) === false || $this->save() === false) {
-                return false;
-            }
+        if (!$skipUpdate && ($this->checkValidationRules($options, $path) === false || $this->save() === false)) {
+            return false;
         }
 
         $relationships = $this->getRelationshipsFromData($data);
@@ -126,7 +137,6 @@ trait SaveAll
             $currentPath .= $relationship;
 
             // check allowed amount of related objects
-            // @todo this is the best way? maybe this must be on validation rules...?
             if ($this->checkRelationshipLimit($relationship, $values, $currentPath) === false) {
                 return false;
             }
@@ -165,7 +175,7 @@ trait SaveAll
      *
      * @return array
      */
-    private function fillForeignKeyRecursively(array $data)
+    private function fillForeignKeyRecursively(array $data): array
     {
         $foreign = $this->getForeignKey();
 
@@ -176,7 +186,7 @@ trait SaveAll
         }
 
         $thisId = $this->getPrimaryKeyValue();
-        if (isset($data[$foreign]) && $data[$foreign] == 'auto' && !empty($thisId)){
+        if (isset($data[$foreign]) && $data[$foreign] == 'auto' && !empty($thisId)) {
             $data[$foreign] = $thisId;
         }
 
@@ -191,7 +201,7 @@ trait SaveAll
      *
      * @return bool
      */
-    private function shouldUseSync($relationship, $data)
+    private function shouldUseSync(string $relationship, array $data): bool
     {
         $relationship = $this->$relationship();
         if ($relationship instanceof BelongsToMany && count($data) === 1) {
@@ -212,10 +222,12 @@ trait SaveAll
      * This method will remove from $data data relative to belongsTo elements
      *
      * @param array $data
+     * @param array $options
      * @param string $path
      * @return array
      */
-    private function checkBelongsTo($data, array $options = [], $path = '') {
+    private function checkBelongsTo(array $data, array $options = [], string $path = ''): array
+    {
         $relationships = $this->getRelationshipsFromData($data);
 
         foreach ($relationships as $relationship => $values) {
@@ -244,10 +256,10 @@ trait SaveAll
 
     /**
      * Get the specified limit for $relationship or false if not exists
-     * @param $relationship name of the relationship
-     * @return mixed
+     * @param string $relationship name of the relationship
+     * @return array|false
      */
-    protected function getRelationshipLimit(string $relationship)
+    protected function getRelationshipLimit(string $relationship): bool|array
     {
         if (isset($this->relationshipsLimits[$relationship])) {
             return array_map (
@@ -264,13 +276,14 @@ trait SaveAll
      * @param string $relationship relationship name
      * @param array $values
      * @param string $path
-     * @return array modified $values
+     * @return bool
+     * @throws Exception
      */
-    protected function checkRelationshipLimit($relationship, $values, $path)
+    protected function checkRelationshipLimit(string $relationship, array $values, string $path): bool
     {
         $relationshipLimit = $this->getRelationshipLimit($relationship);
         if (!$relationshipLimit) {
-            return $values;
+            return true;
         }
 
         if (count($values) === 1 && $this->shouldUseSync($relationship, $values)) {
@@ -281,16 +294,12 @@ trait SaveAll
             $newRelationships = 0;
 
             // check if is associative
-            if ($values && ctype_digit(implode('', array_keys($values))) === false) {
-                return true; // @todo prevent this ???
+            if ($values && isAssoc($values)) {
+                return true;
             }
 
-            foreach ($values as $key => $value) {
-                if (empty(array_filter($value))) {
-                    unset($values[$key]);
-                    continue;
-                }
-
+            $values = cleanCollection($values);
+            foreach ($values as $value) {
                 // get pk from this relationship
                 // se o id do relacionado está vazio ele é novo
                 if (!isset($value[$this->getRelatedPrimaryKey($relationship)])) {
@@ -301,20 +310,15 @@ trait SaveAll
             $sumRelationships = $currentRelationships + $newRelationships;
         }
 
-        $this->errors();
         if ($sumRelationships < $relationshipLimit[0]) {
-            $this->errors->add($path, 'validation.min', $relationshipLimit[0]);
+            $this->addError($path, 'validation.min', $relationshipLimit[0]);
         }
 
         if ($sumRelationships > $relationshipLimit[1]) {
-            $this->errors->add($path, 'validation.max', $relationshipLimit[1]);
+            $this->addError($path, 'validation.max', $relationshipLimit[1]);
         }
 
-        if ($this->errors->has($path)) {
-            return false;
-        }
-
-        return true;
+        return !$this->errors()->has($path);
     }
 
     /**
@@ -328,7 +332,7 @@ trait SaveAll
         $relationship = $this->$relationshipName();
 
         // if is a numeric array, recursive calls to add multiple related
-        if (ctype_digit(implode('', array_keys($values))) === true) {
+        if (!isAssoc($values)) {
             $position = 0;
             foreach ($values as $value) {
                 if (!$this->addRelated($relationshipName, $value, $options, $path . '.' . $position++)) {
@@ -352,7 +356,8 @@ trait SaveAll
 
         // set foreign for hasMany relationships
         if ($relationship instanceof HasMany) {
-            $values[last(explode('.', $relationship->getForeignKeyName()))] = $this->getAttribute($this->getPrimaryKeyName());
+            $attrName = last(explode('.', $relationship->getForeignKeyName()));
+            $values[$attrName] = $this->getAttribute($this->getPrimaryKeyName());
         }
 
         // if is MorphToMany, put other foreign and fill the type
@@ -375,7 +380,8 @@ trait SaveAll
         }
 
         // if has ID, delete or update
-        if (!empty($values[$relationship->getRelated()->getPrimaryKeyName()]) && $relationship instanceof BelongsToMany === false) {
+        if (!empty($values[$relationship->getRelated()->getPrimaryKeyName()])
+            && $relationship instanceof BelongsToMany === false) {
             $obj = $model->find($values[$model->getPrimaryKeyName()]);
             if (!$obj) {
                 return false; // @todo transport error
@@ -406,7 +412,6 @@ trait SaveAll
 
             // if has conditions, fill the values
             // this helps to add static values in relationships using its conditions
-            // @todo experimental
             foreach ($relationship->getQuery()->getQuery()->wheres as $where) {
                 $column = last(explode('.', $where['column']));
                 if (!empty($where['value']) && empty($values[$column])) {
@@ -419,7 +424,7 @@ trait SaveAll
                 return false;
             }
 
-            $values[$belongsToManyOtherKey] = $obj->getPrimaryKeyValue(); // @todo probably change
+            $values[$belongsToManyOtherKey] = $obj->getPrimaryKeyValue();
         }
 
         if ($relationship instanceof HasMany || $relationship instanceof MorphMany) {
@@ -500,9 +505,15 @@ trait SaveAll
         $this->setErrors($thisErrors);
     }
 
+    /**
+     * @throws Exception
+     */
     protected function getRelatedPrimaryKey($relationshipName)
     {
-        // @todo check if relationship exists
+        if (!method_exists($this, $relationshipName)) {
+            throw new UnexpectedValueException("Relationship {$relationshipName} not found");
+        }
+
         $relationship = $this->$relationshipName();
         return $relationship->getRelated()->getPrimaryKeyName();
     }

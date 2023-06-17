@@ -3,6 +3,8 @@ nbproject/
 vendor/
 .idea/
 coverage-report/
+html-coverage/
+coverage*
 api/
 .buildpath
 .project
